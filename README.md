@@ -78,13 +78,8 @@ Project
 │       ├── src/
 │       |   └── utils.cpp 
 |       └── header.h
-├── src/  
-│   └── main.cpp  
-└── test/
-    ├── crash_game_tests.cpp
-    ├── data_collector_tests.cpp
-    ├── utils_tests.cpp
-    └── win_rule_tests.cpp
+└── src/  
+    └── main.cpp  
 ```
 
 
@@ -101,7 +96,8 @@ $$u \sim \mathrm{Unif}(0,1) \Rightarrow m=
 $$
 The RTP is $$\mathrm{RTP}=1-M^{-1}$$
 Top multiplier is obtained when:  
-$M-M^{-1}\leq u\leq 1$
+$$M-M^{-1}\leq u\leq 1$$
+Normally a multiplier of $1$ is not allowed.
 
 
 ## CDF formulation
