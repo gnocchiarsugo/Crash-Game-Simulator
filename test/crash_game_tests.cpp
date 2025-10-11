@@ -1,36 +1,56 @@
-#include <memory>
 #include <functional>
+#include <numeric>
 #include <catch2/catch_all.hpp>
 #include <crashgame/header.h>
 
-TEST_CASE("Crash Game", "[crash game]")
+TEST_CASE("Crash Game")
 {
     ;
     SECTION("If multiplier is constant and there are no winning rules, the winning dist is n_sims times the multiplier, main", "")
     {
-        unsigned n_sims = 103;
-        unsigned n_threads = 4;
-        unsigned m = 103;
-        const auto f = std::function<const unsigned()>([m]() -> const unsigned
-                                                       { return m; });
+        size_t n_sims = 1000;
+        size_t n_threads = 4;
+        mult_t m = 103;
+        const auto f = std::function<const mult_t()>([m]() -> const unsigned
+                                                     { return m; });
         CrashGame cg(n_threads, n_sims, f);
-
-        REQUIRE(cg.getWinDist().at(m) == n_sims);
+        cg.play();
+        REQUIRE(cg.get_wd().sorted_win_dist.at(m) == n_sims);
     }
 
-    SECTION("If multiplier is constant and there is AUTO winning rules, the rule RTP is the mutlitplier", "")
+    SECTION("If multiplier is constant and the OVER stategy has a lower treshold, the RTP is the multiplier", "")
     {
-        unsigned n_sims = 103;
-        unsigned n_threads = 4;
-        unsigned m = 103;
-        const auto f = std::function<const unsigned()>([m]() -> const unsigned
-                                                       { return m; });
+        size_t n_sims = 1000;
+        size_t n_threads = 4;
+        mult_t m = 140;
+        const auto f = std::function<const mult_t()>([m]() -> const unsigned
+                                                     { return m; });
         CrashGame cg(n_threads, n_sims, f);
+        cg.play();
 
-        cg.win_rules.emplace_back(WinRule(BetType::AUTO, 1.02, std::make_pair<unsigned, unsigned>(103U, 103U)));
-        cg.evaluateWins();
+        const strategy_t over([&](const WinDist &wd) -> const std::pair<rtp_t, rtp_std_t>
+                              {
+                              mult_t over_mult = 102U;
+                              size_t n_sims = std::accumulate(wd.win_dist.begin(),
+                                                                wd.win_dist.end(),
+                                                                0U, [&](unsigned acc, const std::pair<mult_t, occ_t> &p)
+                                                                { return acc += p.second; });
 
-        REQUIRE(cg.win_rules.at(0).RTP == 1.02);
-        REQUIRE(cg.win_rules.at(0).RTPstd == 0);
+                              size_t n_wins = std::accumulate(wd.win_dist.begin(),
+                                                                wd.win_dist.end(),
+                                                                0U, [&](unsigned acc, const std::pair<mult_t, occ_t> &p)
+                                                                {
+                                                                    if (p.first >= over_mult)
+                                                                        return acc + p.second;
+                                                                    else
+                                                                        return acc; });
+                              rtp_t rtp = (over_mult * n_wins) / static_cast<double>(100 * n_sims);
+                              rtp_std_t rtp_std = std::sqrt((std::pow(over_mult,2) * n_wins * (n_sims-n_wins)) / static_cast<double>(std::pow(100,2) * std::pow(n_sims,2)));
+                              return std::make_pair(rtp, rtp_std); });
+
+        auto out = cg.evaluate(std::vector<strategy_t>{over});
+
+        REQUIRE(out.at(0).first == 1.02);
+        REQUIRE(out.at(0).second == 0);
     }
 }

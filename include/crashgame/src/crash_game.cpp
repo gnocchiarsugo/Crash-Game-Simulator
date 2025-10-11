@@ -1,45 +1,27 @@
 #include <future>
-#include <iostream>
-#include <array>
-#include "crashgame/include/crash_game.h"
+#include "../include/crash_game.h"
 
-CrashGame::CrashGame(size_t &&n_threads, size_t &&n_sims, const std::function<const unsigned()> &func)
-    : _n_threads(std::move(n_threads)),
-      _n_sims(std::move(n_sims)),
-      _getMulti(func)
-{
-  _execute();
-};
-
-CrashGame::CrashGame(const size_t &n_threads, const size_t &n_sims, const std::function<const unsigned()> &func)
-    : _n_threads(n_threads),
-      _n_sims(n_sims),
-      _getMulti(func)
-{
-  _execute();
-};
-
-void CrashGame::_play(size_t &n_sims, DataCollector &_dc)
+void CrashGame::_execute(size_t n_sims, WinDist &wd) noexcept
 {
   for (size_t i = 0; i < n_sims; i++)
-    _dc.addWin(_getMulti());
+    wd.add_win(_get_multi());
 }
 
-void CrashGame::_execute()
+void CrashGame::play() noexcept
 {
   // Subdivide the tasks
   size_t _thread_task = _n_sims / _n_threads;
   size_t _main_thread_task = _n_sims - _n_threads * _thread_task;
 
-  std::vector<DataCollector> _datastructs(_n_threads, DataCollector());
+  std::vector<WinDist> _datastructs(_n_threads, WinDist());
   std::vector<std::future<void>> _threads;
   _threads.reserve(_n_threads);
 
   // Generate dc
   for (size_t i{0}; i < _n_threads; i++)
-    _threads.emplace_back(std::async(&CrashGame::_play, this, std::ref(_thread_task), std::ref(_datastructs[i])));
+    _threads.emplace_back(std::async(&CrashGame::_execute, this, std::ref(_thread_task), std::ref(_datastructs[i])));
 
-  _play(_main_thread_task, _main_dc);
+  _execute(_main_thread_task, _main_wd);
 
   // Wait for threads
   for (auto &t : _threads)
@@ -47,13 +29,15 @@ void CrashGame::_execute()
 
   // Merge data
   for (auto &data : _datastructs)
-    _main_dc += std::move(data);
+    _main_wd += std::move(data);
+  _main_wd.sort();
 }
 
-void CrashGame::evaluateWins()
+[[nodiscard]] std::vector<std::pair<rtp_t, rtp_std_t>> CrashGame::evaluate(const std::vector<strategy_t> &strats) noexcept
 {
-  if (win_rules.empty())
-    return;
-  for (auto &win_rule : win_rules)
-    win_rule.computeRTP(_main_dc.getWinDist(), _n_sims);
-}
+  std::vector<std::pair<rtp_t, rtp_std_t>> out;
+  for (const strategy_t &strat : strats)
+    out.push_back(strat(_main_wd));
+  std::reverse(out.begin(), out.end());
+  return out;
+};

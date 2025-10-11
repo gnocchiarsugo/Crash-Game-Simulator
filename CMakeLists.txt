@@ -11,17 +11,12 @@ enable_testing()
 file(GLOB CRASHGAME_SRC "include/crashgame/src/*.cpp")
 file(GLOB CRASHGAME_HDR "include/crashgame/include/*.h")
 
-# Crash Game Utils
-file(GLOB CRASHGAMEUTILS_SRC "include/crashgameutils/src/*.cpp")
-file(GLOB CRASHGAMEUTILS_HDR "include/crashgameutils/include/*.h")
-
 # Test
 file(GLOB TARGET_TEST "test/*.cpp")
 
 # Executable
 add_executable(Main src/main.cpp 
-    ${CRASHGAME_SRC} ${CRASHGAME_HDR}
-    ${CRASHGAMEUTILS_SRC} ${CRASHGAMEUTILS_HDR})
+    ${CRASHGAME_SRC} ${CRASHGAME_HDR})
 
 target_include_directories(Main PUBLIC
     "${PROJECT_BINARY_DIR}"
@@ -34,8 +29,7 @@ message(STATUS "PROJECT_BINARY_DIR: ${PROJECT_BINARY_DIR}")
 
 # Tests
 add_executable(Test ${TARGET_TEST} 
-    ${CRASHGAME_SRC} ${CRASHGAME_HDR}
-    ${CRASHGAMEUTILS_SRC} ${CRASHGAMEUTILS_HDR})
+    ${CRASHGAME_SRC} ${CRASHGAME_HDR})
 
 target_include_directories(Test PUBLIC
     "${PROJECT_BINARY_DIR}"  

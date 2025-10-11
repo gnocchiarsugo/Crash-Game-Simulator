@@ -1,39 +1,21 @@
-![Static Badge](https://img.shields.io/badge/Valgrind-No_leaks-green)
-
-
 ```mermaid
 classDiagram
-    DataCollector : -map{U,U} _win_dist
-    DataCollector : +DataCollector()
-    DataCollector : +getWinDist()
-    DataCollector : +addWin(mult)
-    DataCollector : operator+=()
+    WinDist : +unordered_map~U,U~ _win_dist
+    WinDist : +map~U,U~ _sorted_win_dist
+    WinDist : +add_win(mult)
+    WinDist : +sort()
+    WinDist : operator+=(WinDist&&)
 
     CrashGame : -const U _n_threads
     CrashGame : -const U _n_sims
-    CrashGame : -const function{const unsigned} _getMulti
-    CrashGame : -DataCollector _main_dc
-    CrashGame : +vector{WinRule} win_rules
+    CrashGame : -const function~const unsigned~ _get_multi
+    CrashGame : -WinDist _main_dc
+    CrashGame : +vector{const function{const pair{double, double}[WinDist&]}} strategies
 
-    CrashGame : -play(n_sims&, DataCollector&) void
-    CrashGame : -_execute() void
-    CrashGame : +evaluateWins() void
-    CrashGame : +CrashGame(n_threads, n_sims, getMultiplier) void
-    CrashGame : +const getWindist() const WinDist
-    CrashGame : +getSims() const U
-
-    WinRule : +const BetType type
-    WinRule : +const double multi
-    WinRule : +const pair{U,U} ab
-    WinRule : +double RTP
-    WinRule : +double RTPstd
-    WinRule : +WinRule(BetType, double) void
-    WinRule : +computeRTP(DataCollector.win_dist, U) void
-
-    BetType : +AUTO
-    BetType : +OVER
-    BetType : +UNDER
-    BetType : +RANGE
+    CrashGame : +CrashGame(n_threads, n_sims, get_multiplier) void
+    CrashGame : +play() void
+    CrashGame : -_execute(n_sims&, WinDist&) void
+    CrashGame : +evaluate() vector~pair{double, double}~
 ```
 
 ## CrashGame
@@ -50,7 +32,7 @@ classDiagram
 
 ### CalculateRTP
 
-$$\mathrm{RTP} =\langle m \rangle =m \cdot \mathbb{P}[win]\approx \frac{m\cdot n}{N}$$
+$$\mathrm~RTP} =\langle m \rangle =m \cdot \mathbb{P}[win]\approx \frac{m\cdot n}{N}$$
 $$\sigma_{\mathrm{RTP}}^2 = \langle m^2 \rangle - \langle m \rangle^2= m^2\cdot \mathbb{P}[win]\left(1-\mathbb{P}[win]\right)\approx \frac{m^2\cdot n \cdot (N-n)}{N^2}$$
 
 ## Game
