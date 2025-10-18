@@ -13,7 +13,7 @@ void print_outcomes(std::vector<std::pair<rtp_t, rtp_std_t>> &outcomes);
 
 int main()
 {
-    const size_t n_sims = static_cast<size_t>(1e5);
+    const size_t n_sims = static_cast<size_t>(1e8);
     const size_t n_threads = std::thread::hardware_concurrency();
 
     unsigned M = 20;
@@ -38,12 +38,8 @@ int main()
     const strategy_t over([&](const WinDist &wd) -> const std::pair<rtp_t, rtp_std_t>
                           {
                               mult_t over_mult = 100U;
-                              size_t n_sims = std::accumulate(wd.win_dist.begin(),
-                                                                wd.win_dist.end(),
-                                                                0U, [&](unsigned acc, const std::pair<mult_t, occ_t> &p)
-                                                                { return acc += p.second; });
-
-                              size_t n_wins = std::accumulate(wd.win_dist.begin(),
+                              
+                              double n_wins = std::accumulate(wd.win_dist.begin(),
                                                                 wd.win_dist.end(),
                                                                 0U, [&](unsigned acc, const std::pair<mult_t, occ_t> &p)
                                                                 {
@@ -51,7 +47,7 @@ int main()
                                                                         return acc + p.second;
                                                                     else
                                                                         return acc; });
-                              rtp_t rtp = over_mult * n_wins / static_cast<double>(n_sims*100);
+                              rtp_t rtp = over_mult * n_wins / (n_sims*100);
                               rtp_std_t rtp_std = std::sqrt((std::pow(over_mult,2) * n_wins * (n_sims-n_wins)) / static_cast<double>(std::pow(100,2) * std::pow(n_sims,2)));
                               rtp_std /= std::sqrt(n_sims);
                               return std::make_pair(rtp, rtp_std); });
@@ -64,7 +60,7 @@ int main()
     int sec = tot_sec % 60;
     int min = (tot_sec - sec) / 60;
 
-   print_outcomes(values);
+    print_outcomes(values);
 
     std::cout << "Time taken to simulate: " << min << " min " << sec << " sec " << ms << " ms" << std::endl;
 
