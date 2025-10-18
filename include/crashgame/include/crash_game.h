@@ -5,83 +5,80 @@
 #include <functional>
 #include <unordered_map>
 #include <map>
+#include <future>
 #include <algorithm>
 
-typedef unsigned mult_t;
+#include <concepts>
+
 typedef unsigned occ_t;
-typedef std::unordered_map<unsigned, unsigned> win_dist_t;
-typedef std::map<unsigned, unsigned> sorted_win_dist_t;
-typedef double rtp_t;
-typedef double rtp_std_t;
+typedef double metric_t;
 
-struct WinDist
-{
-    win_dist_t win_dist;
-    sorted_win_dist_t sorted_win_dist;
-
-    void add_win(const mult_t multiplier) noexcept { ++win_dist[multiplier]; };
-
-    void sort() noexcept { sorted_win_dist.insert_range(win_dist); };
-
-    WinDist &operator+=(WinDist &&other) noexcept
-    {
-        if (!other.win_dist.empty())
-        {
-            win_dist.merge(other.win_dist);
-            for (const auto &[mult, occ] : other.win_dist)
-                win_dist[mult] += occ;
-        }
-
-        if (!other.sorted_win_dist.empty())
-        {
-            sorted_win_dist.merge(other.sorted_win_dist);
-            for (const auto &[mult, occ] : other.sorted_win_dist)
-                sorted_win_dist[mult] += occ;
-        }
-        return *this;
-    };
+template <typename T>
+concept Hashable = requires(T a) {
+    { std::hash<T>{}(a) } -> std::convertible_to<std::size_t>;
 };
 
-typedef std::function<const std::pair<rtp_t, rtp_std_t>(const WinDist &)> strategy_t;
+template <Hashable T>
+using win_dist_t = std::unordered_map<T, occ_t>;
 
+template <Hashable T>
+using generator_t = std::function<T()>;
+
+template <Hashable T>
+using strategy_t = std::function<std::vector<metric_t>(const win_dist_t<T> &)>;
+
+template <Hashable T>
 class CrashGame
 {
 private:
     const size_t _n_sims;
     const size_t _n_threads;
-    const std::function<const mult_t()> _get_multi;
-    WinDist _main_wd;
+    const generator_t<T> _get_multi;
+    win_dist_t<T> _main_dist;
 
-    /**
-     * @brief Executes the simulations
-     */
-    void _execute(size_t, WinDist &) noexcept;
+    void _play(const size_t, win_dist_t<T> &) noexcept;
 
 public:
-    /**
-     * @brief CrashGame constructor
-     * @param  n_threads number of simulations
-     *  @param  n_sims of DataCollector type
-     * @param  func const std::function<const unsigned()> getMultiplier
-     */
-
     CrashGame(size_t n_threads,
               size_t n_sims,
-              const std::function<const unsigned()> &get_multi)
+              const generator_t<T> &get_multi)
         : _n_threads{n_threads},
           _n_sims{n_sims},
           _get_multi{get_multi} {};
 
-    /**
-     *  @brief Plays the game and stores data inside _main_dc
-     */
-    void play() noexcept;
-
-    /**
-     * @brief Evaluate wins if _win_rules is populated
-     */
-
-    [[nodiscard]] std::vector<std::pair<rtp_t, rtp_std_t>> evaluate(const std::vector<strategy_t> &strats) noexcept;
-
-    const WinDist &get_wd() noexcept { return _main_wd; };
+    void simulate() noexcept;
+    [[nodiscard]] const win_dist_t<T> &get_wd() noexcept { return _main_dist; };
 };
+
+/**
+ *  CrashGame definitions
+ */
+
+template <Hashable T>
+void CrashGame<T>::_play(const size_t sims, win_dist_t<T> &dist) noexcept
+{
+    for (size_t i{0}; i < sims; ++i)
+        ++dist[_get_multi()];
+}
+
+template <Hashable T>
+void CrashGame<T>::simulate() noexcept
+{
+    size_t thread_sims = _n_sims / _n_threads;
+    size_t main_sims = _n_sims - _n_threads * thread_sims;
+
+    std::vector<win_dist_t<T>> _ds(_n_threads, win_dist_t<T>());
+    _ds.shrink_to_fit();
+    std::vector<std::future<void>> _threads;
+
+    for (size_t i{0}; i < _n_threads; i++)
+        _threads.emplace_back(std::async(&CrashGame::_play, this, thread_sims, std::ref(_ds[i])));
+    _play(main_sims, _main_dist);
+
+    for (auto &t : _threads)
+        t.wait();
+
+    for (auto &data : _ds)
+        for (const auto &[key, value] : data)
+            _main_dist[key] += value;
+}
