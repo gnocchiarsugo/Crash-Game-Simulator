@@ -1,50 +1,41 @@
 #include <iostream>
-#include <functional>
-#include <random>
-#include <time.h>
+#include <slot/header.h>
+#include <utility>
+#include <chrono>
 #include <thread>
-#include <cmath>
-#include <vector>
-#include <crashgame/header.h>
-#include <crashgameutils/header.h>
+#include "scenarios.h"
 
 int main()
 {
-    const size_t n_sims = static_cast<unsigned>(1e7);
-    const size_t n_threads = std::thread::hardware_concurrency();
-    unsigned M = 20;
+    const unsigned n_threads = std::thread::hardware_concurrency();
+    const size_t n_sims = 1e8;
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution d(0., 1.);
+    Platform<decltype(slot)> plt(n_threads, n_sims);
+    scenarios_t<decltype(slot)> scenes;
+    scenes[1] = base_scene;
 
-    const auto func = std::function<const unsigned()>(
-        [&]() -> const unsigned
-        {
-            double u = d(gen);
-            if (M * u < 1)
-                return 0;
-            else
-                return std::ceil(100 * M * u);
-        });
+    using clock = std::chrono::high_resolution_clock;
+    auto t1 = clock::now();
+    plt.simulate(slot, scenes);
+    auto t2 = clock::now();
 
-    auto t1 = std::clock();
-    CrashGame cg(n_threads, n_sims, func);
-    auto t2 = std::clock();
+    std::vector<double> stats = statistic::compute(plt.get_dist(), bet);
 
-    cg.win_rules.emplace_back(WinRule(BetType::OVER, 1.0, std::make_pair<unsigned, unsigned>(101U, 3000U)));
+    auto div = std::string(40, '=');
+    constexpr double ALPHA95 = 1.959964;
+    std::cout << div << '\n';
+    std::cout << "Simulation #: " << n_sims << '\n';
+    std::cout << "Threads: " << n_threads << '\n';
+    std::cout << "RTP: " << stats[0] << '\n';
+    std::cout << "RTP std: " << stats[1] << '\n';
+    std::cout << "95% CI: [" << stats[0] - ALPHA95 * stats[2] << ", " << stats[0] + ALPHA95 * stats[2] << "]" << '\n';
+    std::cout << div << '\n';
 
-    cg.evaluateWins();
-    cg::printRules(cg);
-    cg::writeWinDist(cg.getWinDist(), "win_dist");
-
-    int tot_ms = (t2 - t1) * 1000 / CLOCKS_PER_SEC;
-    int ms = tot_ms % 1000;
-    int tot_sec = (tot_ms - ms) / 1000;
-    int sec = tot_sec % 60;
-    int min = (tot_sec - sec) / 60;
-
-    std::cout << "Time taken to simulate: " << min << " min " << sec << " sec " << ms << " ms" << std::endl;
+    std::chrono::duration<double, std::milli> tot_ms = t2 - t1;
+    auto min = std::chrono::duration_cast<std::chrono::minutes>(tot_ms);
+    auto sec = std::chrono::duration_cast<std::chrono::seconds>(tot_ms - min);
+    auto ms = tot_ms - min - sec;
+    std::cout << "Time taken to simulate: " << min << " " << sec << " " << ms << std::endl;
 
     return 0;
 }

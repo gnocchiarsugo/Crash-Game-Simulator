@@ -1,0 +1,8 @@
+#include "include/platform.h"
+#include "include/game.h"
+#include "include/namespace.h"
+#include "include/typedefs.h"
+#include "include/slot_typedefs.h"
+#include "include/chacha.h"
+#include "include/win_methods.h"
+#include "include/spin_methods.h"
